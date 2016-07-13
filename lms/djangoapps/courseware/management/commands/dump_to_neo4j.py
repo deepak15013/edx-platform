@@ -12,19 +12,18 @@ logger = logging.getLogger('neo4j.bolt')
 logger.propagate = False
 logger.disabled = True
 
+ACCEPTABLE_TYPES = (integer, string, unicode, float, bool, tuple, list, set, frozenset)
+
 class ModuleStoreSerializer(object):
     """
-    Class with functionality to serialize a modulestore to CSVs:
-    Each csv will have information about one kind of xblock.
-    There will also be a "relationships" csv with information about
-    which xblocks are children of each other.
+    Class with functionality to serialize a modulestore into subgraphs,
+    one graph per course.
     """
     def __init__(self):
         self.all_courses = modulestore().get_course_summaries()
 
-
-
-    def serialize_item(self, item, course_key):
+    @staticmethod
+    def _serialize_item(item, course_key):
         """
         Args:
             item: an XBlock
@@ -32,7 +31,7 @@ class ModuleStoreSerializer(object):
 
         Returns:
             fields: a dictionary of an XBlock's field names and values
-            block_type: the name of the XBlock's type (i.e. 'course'
+            label: the name of the XBlock's type (i.e. 'course'
             or 'problem')
         """
         # convert all fields to a dict and filter out parent and children field
@@ -42,96 +41,126 @@ class ModuleStoreSerializer(object):
             if field not in ['parent', 'children']
         )
 
+        # set reset some defaults
         fields['edited_on'] = unicode(getattr(item, 'edited_on', u''))
         fields['display_name'] = item.display_name_with_default
-
-        fields['location:ID'] = unicode(item.location)
-        if fields.get("location"):
-            del fields['location']
-
-        block_type = item.scope_ids.block_type
-
-        fields['type'] = block_type
-
-        label = fields['type']
-        del fields['type']
-
-        if block_type == 'course':
-            if 'checklists' in fields:
-                del fields['checklists']
-
         fields['org'] = course_key.org
         fields['course'] = course_key.course
         fields['run'] = course_key.run
         fields['course_key'] = unicode(course_key)
 
+        label = item.scope_ids.block_type
+
+        # prune some fields
+        if label == 'course':
+            if 'checklists' in fields:
+                del fields['checklists']
+
         return fields, label
+
+    def serialize_course(self, course_id):
+        """
+        Args:
+            course_id: CourseKey of the course we want to serialize
+
+        Returns:
+            nodes: a list of py2neo Node objects
+            relationships: a list of py2neo Relationships objects
+
+        Takes serializes a course into Nodes and Relationships
+        """
+        # create a location to node mapping we'll need later for
+        # writing relationships
+        location_to_node = {}
+        items = modulestore().get_items(course_id)
+        nodes = []
+        relationships = []
+
+        for item in items:
+            fields, label = self._serialize_item(item, course_id)
+
+            for field_name, value in fields.iteritems():
+                fields[field_name] = self.coerce_types(value)
+
+            if label.__class__ not in ACCEPTABLE_TYPES:
+                label = unicode(label)
+
+            node = Node(label, **fields)
+            nodes.append(node)
+            location_to_node[item.location] = node
+
+        for item in items:
+            for child_loc in item.get_children():
+                parent_node = location_to_node.get(item.location)
+                child_node = location_to_node.get(child_loc.location)
+                if parent_node is not None and child_node is not None:
+                    relationship = Relationship(parent_node, "PARENT_OF", child_node)
+                    relationships.append(relationship)
+
+        return nodes, relationships
+
+    @staticmethod
+    def coerce_types(value):
+        """
+        Args:
+            value: the value of an xblock's field
+
+        Returns: either the value, a unicode version of the value, or, if the
+        value is iterable, the value with each element being converted to unicode
+        """
+        if value.__class__ in (tuple, list, set, frozenset):
+            for index, element in enumerate(value):
+                value[index] = unicode(element)
+
+        elif value.__class__ not in ACCEPTABLE_TYPES:
+            value = unicode(value)
+
+        return value
 
 
 class Command(BaseCommand):
-
-
-    def handle(self, *args, **options):
+    """
+    Command to dump modulestore data to neo4j
+    """
+    def handle(self, *args, **kwargs):
 
         mss = ModuleStoreSerializer()
-
-        ACCEPTABLE_TYPES = (integer, string, unicode, float, bool, tuple, list, set, frozenset)
 
         graph = Graph(password="edx", bolt=True)
         authenticate("localhost:7474", 'neo4j', 'edx')
 
-        print "deleting existing graph"
+        log.info("deleting existing coursegraph data")
         graph.delete_all()
+        total_number_of_courses = len(mss.all_courses)
 
-
-        for course in mss.all_courses:
-
-            number_courses = 0
-
+        for index, course in enumerate(mss.all_courses):
+            # first, clear the request cache to prevent memory leaks
             RequestCache.clear_request_cache()
-            log.info(course.id)
-            location_to_node = {}
-            # log.info("getting items for %s", unicode(course.id))
-            items = modulestore().get_items(course.id)
-            # log.info("items got!")
 
-            nodes = []
-            # log.info('serializing items for %s', unicode(course.id))
-            tx = graph.begin()
-            for item in items:
-                fields, label = mss.serialize_item(item, course.id)
+            log.info(
+                u"Now dumping %s, course %d of %d",
+                course.id,
+                index + 1,
+                total_number_of_courses
+            )
+            nodes, relationships = mss.serialize_course(course.id)
+            transaction = graph.begin()
 
-                for k, v in fields.iteritems():
-                    fields[k] = coerce_types(v, ACCEPTABLE_TYPES)
+            try:
+                for node in nodes:
+                    transaction.create(node)
 
-                if not label.__class__ in ACCEPTABLE_TYPES:
-                    label = unicode(label)
+                for relationship in relationships:
+                    transaction.create(relationship)
 
-                node = Node(label, **fields)
-                tx.create(node)
-                location_to_node.update({item.location: node})
+            except Exception:
+                log.exception(
+                    u"Error trying to dump course %s to neo4j, rolling back",
+                    unicode(course.id)
+                )
+                transaction.rollback()
 
-            # log.info('items serialized')
-            for item in items:
-                # subgraph = Subgraph()
-                for child_loc in item.get_children():
-                    parent_node = location_to_node.get(item.location)
-                    child_node = location_to_node.get(child_loc.location)
-                    if parent_node is not None and child_node is not None:
-                        relationship = Relationship(parent_node, "PARENT_OF", child_node)
-                        # subgraph = relationship | subgraph
-
-                        tx.create(relationship)
-            tx.commit()
+            transaction.commit()
 
 
-def coerce_types(value, acceptable_types):
 
-    if value.__class__ in (tuple, list, set, frozenset):
-        for index, element in enumerate(value):
-            value[index] = unicode(element)
-
-    elif not value.__class__ in acceptable_types:
-        value = unicode(value)
-
-    return value
