@@ -8,7 +8,7 @@ from django.test import TestCase, override_settings
 from django.conf import settings
 
 from openedx.core.djangoapps.theming.tests.test_util import with_comprehensive_theme
-from openedx.core.djangoapps.theming import helpers
+from openedx.core.djangoapps.site_configuration import helpers as configuration_helpers
 from openedx.core.djangoapps.theming.helpers import get_template_path_with_theme, strip_site_theme_templates_path, \
     get_themes, Theme, get_theme_base_dir
 
@@ -50,7 +50,7 @@ class TestHelpers(TestCase):
             override_key = 'JWT_ISSUER'
             override_value = 'testing'
             mock_get_value.return_value = {override_key: override_value}
-            jwt_auth = helpers.get_value('JWT_AUTH')
+            jwt_auth = configuration_helpers.get_value('JWT_AUTH')
             self.assertEqual(jwt_auth[override_key], override_value)
 
 
