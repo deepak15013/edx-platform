@@ -1,6 +1,7 @@
 """
 Tests for Blocks Views
 """
+from datetime import datetime
 
 from django.core.urlresolvers import reverse
 from string import join
@@ -28,8 +29,18 @@ class TestBlocksView(SharedModuleStoreTestCase):
         super(TestBlocksView, cls).setUpClass()
 
         # create a toy course
-        cls.course_key = ToyCourseFactory.create().id
+        cls.course = ToyCourseFactory._create(  # pylint: disable=protected-access
+            None,
+            modulestore=cls.store,
+            due=datetime(3013, 9, 18, 11, 30, 00),
+            org=ToyCourseFactory.org,
+            course=ToyCourseFactory.course,
+            run=ToyCourseFactory.run,
+            display_name=ToyCourseFactory.display_name,
+        )
+        cls.course_key = cls.course.id
         cls.course_usage_key = cls.store.make_course_usage_key(cls.course_key)
+
         cls.non_orphaned_block_usage_keys = set(
             unicode(item.location)
             for item in cls.store.get_items(cls.course_key)
@@ -40,7 +51,7 @@ class TestBlocksView(SharedModuleStoreTestCase):
     def setUp(self):
         super(TestBlocksView, self).setUp()
 
-        # create a user, enrolled in the toy course
+        # create and enroll user in the toy course
         self.user = UserFactory.create()
         self.client.login(username=self.user.username, password='test')
         CourseEnrollmentFactory.create(user=self.user, course_id=self.course_key)
@@ -100,6 +111,8 @@ class TestBlocksView(SharedModuleStoreTestCase):
             block_key = deserialize_usage_key(block_key_string, self.course_key)
             xblock = self.store.get_item(block_key)
 
+            print "\n block data \n"
+            print block_data
             self.assert_in_iff('children', block_data, xblock.has_children)
             self.assert_in_iff('graded', block_data, xblock.graded is not None)
             self.assert_in_iff('format', block_data, xblock.format is not None)
