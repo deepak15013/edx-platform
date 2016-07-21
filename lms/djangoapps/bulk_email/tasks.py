@@ -541,7 +541,7 @@ def _send_course_email(entry_id, email_id, to_list, global_email_context, subtas
                     email
                 )
                 with dog_stats_api.timer('course_email.single_send.time.overall', tags=[_statsd_tag(course_title)]):
-                    connection.send_messages([email_msg])
+                    raise SESMaxSendingRateExceededError("you dun goofed", "meow")
 
             except SMTPDataError as exc:
                 # According to SMTP spec, we'll retry error codes in the 4xx range.  5xx range indicates hard failure.
@@ -794,6 +794,7 @@ def _submit_for_retry(entry_id, email_id, to_list, global_email_context,
         )
         raise retry_task
     except RetryTaskError as retry_error:
+        from nose.tools import set_trace; set_trace()
         # If the retry call is successful, update with the current progress:
         log.exception(u'Task %s: email with id %d caused send_course_email task to retry.',
                       task_id, email_id)
