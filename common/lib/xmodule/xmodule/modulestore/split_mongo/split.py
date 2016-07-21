@@ -3349,7 +3349,7 @@ class SplitMongoModuleStore(SplitBulkWriteMixin, ModuleStoreWriteBase):
             render_template=self.render_template,
             mixins=self.xblock_mixins,
             select=self.xblock_select,
-            disabled_xblock_types=self.disabled_xblock_types,
+            fetch_disabled_xblock_types=self.fetch_disabled_xblock_types,
             services=self.services,
         )
 

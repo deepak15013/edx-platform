@@ -945,7 +945,7 @@ class MongoModuleStore(ModuleStoreDraftAndPublished, ModuleStoreWriteBase, Mongo
                 cached_metadata=cached_metadata,
                 mixins=self.xblock_mixins,
                 select=self.xblock_select,
-                disabled_xblock_types=self.disabled_xblock_types,
+                fetch_disabled_xblock_types=self.fetch_disabled_xblock_types,
                 services=services,
             )
         else:

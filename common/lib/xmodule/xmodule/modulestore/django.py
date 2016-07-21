@@ -51,10 +51,8 @@ except ImportError:
 
 try:
     from xblock_django.api import disabled_xblocks
-    from xblock_django.models import XBlockConfiguration
 except ImportError:
     disabled_xblocks = None
-    XBlockConfiguration = None
 
 log = logging.getLogger(__name__)
 ASSET_IGNORE_REGEX = getattr(settings, "ASSET_IGNORE_REGEX", r"(^\._.*$)|(^\.DS_Store$)|(^.*~$)")
@@ -192,9 +190,9 @@ def create_modulestore_instance(
         doc_store_config['read_preference'] = getattr(ReadPreference, doc_store_config['read_preference'])
 
     if disabled_xblocks:
-        disabled_xblock_types = [block.name for block in disabled_xblocks()]
+        fetch_disabled_xblock_types = lambda: [block.name for block in disabled_xblocks()]
     else:
-        disabled_xblock_types = ()
+        fetch_disabled_xblock_types = lambda: []
 
     xblock_field_data_wrappers = [load_function(path) for path in settings.XBLOCK_FIELD_DATA_WRAPPERS]
 
@@ -205,7 +203,7 @@ def create_modulestore_instance(
         xblock_mixins=getattr(settings, 'XBLOCK_MIXINS', ()),
         xblock_select=getattr(settings, 'XBLOCK_SELECT_FUNCTION', None),
         xblock_field_data_wrappers=xblock_field_data_wrappers,
-        disabled_xblock_types=disabled_xblock_types,
+        fetch_disabled_xblock_types=fetch_disabled_xblock_types,
         doc_store_config=doc_store_config,
         i18n_service=i18n_service or ModuleI18nService,
         fs_service=fs_service or xblock.reference.plugins.FSService(),
@@ -253,17 +251,6 @@ def clear_existing_modulestores():
     """
     global _MIXED_MODULESTORE  # pylint: disable=global-statement
     _MIXED_MODULESTORE = None
-
-
-if XBlockConfiguration and disabled_xblocks:
-    @django.dispatch.receiver(post_save, sender=XBlockConfiguration)
-    def reset_disabled_xblocks(sender, instance, **kwargs):  # pylint: disable=unused-argument
-        """
-        If XBlockConfiguation and disabled_xblocks are available, register a signal handler
-        to update disabled_xblocks on model changes.
-        """
-        disabled_xblock_types = [block.name for block in disabled_xblocks()]
-        modulestore().disabled_xblock_types = disabled_xblock_types
 
 
 class ModuleI18nService(object):
