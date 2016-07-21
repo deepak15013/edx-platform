@@ -23,7 +23,7 @@ class ModuleStoreSerializer(object):
         self.all_courses = modulestore().get_course_summaries()
 
     @staticmethod
-    def _serialize_item(item, course_key):
+    def _serialize_item(item):
         """
         Args:
             item: an XBlock
@@ -40,6 +40,8 @@ class ModuleStoreSerializer(object):
             for (field, field_value) in item.fields.iteritems()
             if field not in ['parent', 'children']
         )
+
+        course_key = item.scope_ids.usage_id.course_key
 
         # set reset some defaults
         fields['edited_on'] = unicode(getattr(item, 'edited_on', u''))
@@ -77,7 +79,7 @@ class ModuleStoreSerializer(object):
         relationships = []
 
         for item in items:
-            fields, label = self._serialize_item(item, course_id)
+            fields, label = self._serialize_item(item)
 
             for field_name, value in fields.iteritems():
                 fields[field_name] = self.coerce_types(value)
@@ -128,6 +130,8 @@ class Command(BaseCommand):
 
         graph = Graph(password="edx", bolt=True)
         authenticate("localhost:7474", 'neo4j', 'edx')
+
+        import ipdb; ipdb.set_trace()
 
         log.info("deleting existing coursegraph data")
         graph.delete_all()
