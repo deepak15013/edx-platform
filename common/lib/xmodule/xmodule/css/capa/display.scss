@@ -907,6 +907,7 @@ div.problem {
 // ====================
 div.problem .action {
   @include margin($baseline 0 $baseline 0);
+  min-height: $baseline;
 
   // override default button hover
   button.btn-brand {
@@ -931,7 +932,6 @@ div.problem .action {
       position: absolute;
       @include margin-right(($baseline*.75));
       right: 0;
-      height: ($baseline*2.6);
     }
 
   }
