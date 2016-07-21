@@ -809,3 +809,134 @@ class ProblemStateOnNavigationTest(UniqueCourseTest):
         self.go_to_tab_and_assert_problem(1, self.problem1_name)
         problem1_content_after_coming_back = self.problem_page.problem_content
         self.assertEqual(problem1_content_before_switch, problem1_content_after_coming_back)
+
+
+class SubsectionHiddenAfterDueDateTest(UniqueCourseTest):
+    USERNAME = "STUDENT_TESTER"
+    EMAIL = "student101@example.com"
+
+    def setUp(self):
+        super(SubsectionHiddenAfterDueDateTest, self).setUp()
+
+        self.courseware_page = CoursewarePage(self.browser, self.course_id)
+
+        self.course_outline = CourseOutlinePage(
+            self.browser,
+            self.course_info['org'],
+            self.course_info['number'],
+            self.course_info['run']
+        )
+
+        # Install a course with sections/problems, tabs, updates, and handouts
+        course_fix = CourseFixture(
+            self.course_info['org'], self.course_info['number'],
+            self.course_info['run'], self.course_info['display_name']
+        )
+
+        course_fix.add_children(
+            XBlockFixtureDesc('chapter', 'Test Section 1').add_children(
+                XBlockFixtureDesc('sequential', 'Test Subsection 1').add_children(
+                    XBlockFixtureDesc('problem', 'Test Problem 1')
+                )
+            )
+        ).install()
+
+        self.track_selection_page = TrackSelectionPage(self.browser, self.course_id)
+        self.payment_and_verification_flow = PaymentAndVerificationFlow(self.browser, self.course_id)
+        self.immediate_verification_page = PaymentAndVerificationFlow(
+            self.browser, self.course_id, entry_point='verify-now'
+        )
+        self.upgrade_page = PaymentAndVerificationFlow(self.browser, self.course_id, entry_point='upgrade')
+        self.fake_payment_page = FakePaymentPage(self.browser, self.course_id)
+        self.dashboard_page = DashboardPage(self.browser)
+        self.problem_page = ProblemPage(self.browser)
+
+        # Add a verified mode to the course
+        ModeCreationPage(
+            self.browser, self.course_id, mode_slug=u'verified', mode_display_name=u'Verified Certificate',
+            min_price=10, suggested_prices='10,20'
+        ).visit()
+
+        # Auto-auth register for the course.
+        self._auto_auth(self.USERNAME, self.EMAIL, False)
+
+    def _setup_and_complete_subsection(self):
+        """
+        Helper to set up a problem subsection as staff, then take
+        it as a student.
+        """
+        LogoutPage(self.browser).visit()
+        self._auto_auth("STAFF_TESTER", "staff101@example.com", True)
+        self.course_outline.visit()
+        self.course_outline.open_subsection_settings_dialog()
+
+        self.course_outline.select_advanced_tab()
+        self.course_outline.make_subsection_hidden_after_due()
+
+        LogoutPage(self.browser).visit()
+        self._login_as_a_verified_user()
+        self.courseware_page.visit()
+
+        self.courseware_page.start_timed_exam()
+        self.assertTrue(self.courseware_page.is_timer_bar_present)
+
+        self.courseware_page.stop_timed_exam()
+        self.assertTrue(self.courseware_page.has_submitted_exam_message())
+
+        LogoutPage(self.browser).visit()
+
+    def _auto_auth(self, username, email, staff):
+        """
+        Logout and login with given credentials.
+        """
+        AutoAuthPage(self.browser, username=username, email=email,
+                     course_id=self.course_id, staff=staff).visit()
+
+    def _login_as_a_verified_user(self):
+        """
+        login as a verified user
+        """
+
+        self._auto_auth(self.USERNAME, self.EMAIL, False)
+
+        # the track selection page cannot be visited. see the other tests to see if any prereq is there.
+        # Navigate to the track selection page
+        self.track_selection_page.visit()
+
+        # Enter the payment and verification flow by choosing to enroll as verified
+        self.track_selection_page.enroll('verified')
+
+        # Proceed to the fake payment page
+        self.payment_and_verification_flow.proceed_to_payment()
+
+        # Submit payment
+        self.fake_payment_page.submit_payment()
+
+    def test_timed_exam_flow(self):
+        """
+        Given that I am a staff member on the exam settings section
+        select advanced settings tab
+        When I Make the exam timed.
+        And I login as a verified student.
+        And visit the courseware as a verified student.
+        And I start the timed exam
+        Then I am taken to the exam with a timer bar showing
+        When I finish the exam
+        Then I see the exam submitted dialog in place of the exam
+        When I log back into studio as a staff member
+        And change the problem's due date to be in the past
+        And log back in as the original verified student
+        Then I see the exam or message in accordance with the hide_after_due setting
+        """
+        self._setup_and_complete_subsection()
+
+        LogoutPage(self.browser).visit()
+        self._auto_auth("STAFF_TESTER", "staff101@example.com", True)
+        self.course_outline.visit()
+        last_week = (datetime.today() - timedelta(days=7)).strftime("%m/%d/%Y")
+        self.course_outline.change_problem_due_date(last_week)
+
+        LogoutPage(self.browser).visit()
+        self._auto_auth(self.USERNAME, self.EMAIL, False)
+        self.courseware_page.visit()
+        self.assertTrue(self.courseware_page.has_submitted_exam_message())
