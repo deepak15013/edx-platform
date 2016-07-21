@@ -31,7 +31,7 @@ class @Problem
     @checkButton = @$('div.action button.check')
     @checkButtonLabel = @$('div.action button.check span.check-label')
     @checkButtonCheckText = @checkButtonLabel.text()
-    @checkButtonCheckingText = @checkButton.data('Submitting')
+    @checkButtonCheckingText = @checkButton.data('checking')
     @checkButton.click @check_fd
     @hintButton = @$('div.action button.hint-button')
     @hintButton.click @hint_button
