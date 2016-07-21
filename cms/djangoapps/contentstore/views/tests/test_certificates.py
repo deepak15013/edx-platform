@@ -26,8 +26,7 @@ from course_modes.tests.factories import CourseModeFactory
 from contentstore.views.certificates import CertificateManager
 from django.test.utils import override_settings
 from contentstore.utils import get_lms_link_for_certificate_web_view
-from util.testing import EventTestMixin
-from util.url import reload_django_url_config
+from util.testing import EventTestMixin, UrlResetMixin
 
 FEATURES_WITH_CERTS_ENABLED = settings.FEATURES.copy()
 FEATURES_WITH_CERTS_ENABLED['CERTIFICATES_HTML_VIEW'] = True
@@ -107,7 +106,7 @@ class HelperMethods(object):
 
 
 # pylint: disable=no-member
-class CertificatesBaseTestCase(object):
+class CertificatesBaseTestCase(UrlResetMixin):
     """
     Mixin with base test cases for the certificates.
     """
@@ -206,7 +205,6 @@ class CertificatesListHandlerTestCase(EventTestMixin, CourseTestCase, Certificat
         """
         Set up CertificatesListHandlerTestCase.
         """
-        reload_django_url_config()
         super(CertificatesListHandlerTestCase, self).setUp('contentstore.views.certificates.tracker')
 
     def _url(self):
@@ -433,7 +431,6 @@ class CertificatesDetailHandlerTestCase(EventTestMixin, CourseTestCase, Certific
         """
         Set up CertificatesDetailHandlerTestCase.
         """
-        reload_django_url_config()
         super(CertificatesDetailHandlerTestCase, self).setUp('contentstore.views.certificates.tracker')
 
     def _url(self, cid=-1):
