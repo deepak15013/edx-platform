@@ -191,7 +191,8 @@ class GatingTest(UniqueCourseTest):
         staff_page = StaffPage(self.browser, self.course_id)
         self.assertEqual(staff_page.staff_view_mode, 'Staff')
         self.assertEqual(self.courseware_page.num_subsections, 2)
-        self.courseware_page.q(css='.chapter-content-container a')[1].click()
+        self.courseware_page.q(css='.chapter-content-container a').nth(1).click()
+        self.courseware_page.visit()
         self.assertTrue(self.courseware_page.has_banner())
 
         staff_page.set_staff_view_mode('Student')
@@ -202,5 +203,6 @@ class GatingTest(UniqueCourseTest):
         staff_page.set_staff_view_mode_specific_student(self.STUDENT_USERNAME)
 
         self.assertEqual(self.courseware_page.num_subsections, 2)
-        self.courseware_page.q(css='.chapter-content-container a')[1].click()
+        self.courseware_page.q(css='.chapter-content-container a').nth(1).click()
+        self.courseware_page.visit()
         self.assertFalse(self.courseware_page.has_banner())
