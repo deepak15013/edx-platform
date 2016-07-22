@@ -111,6 +111,11 @@ class CertificatesBaseTestCase(UrlResetMixin):
     Mixin with base test cases for the certificates.
     """
 
+    def setUp(self):
+        # Overriding the FEATURES_WITH_CERTS_ENABLED settings value affects the contents of urls.py,
+        # so we need to call super.setUp() which reloads urls.py (because  of the UrlResetMixin)
+        super(CertificatesBaseTestCase, self).setUp()
+
     def _remove_ids(self, content):
         """
         Remove ids from the response. We cannot predict IDs, because they're
