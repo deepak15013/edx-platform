@@ -27,6 +27,7 @@ from contentstore.views.certificates import CertificateManager
 from django.test.utils import override_settings
 from contentstore.utils import get_lms_link_for_certificate_web_view
 from util.testing import EventTestMixin, UrlResetMixin
+from util.url import reload_django_url_config
 
 FEATURES_WITH_CERTS_ENABLED = settings.FEATURES.copy()
 FEATURES_WITH_CERTS_ENABLED['CERTIFICATES_HTML_VIEW'] = True
@@ -216,6 +217,7 @@ class CertificatesListHandlerTestCase(EventTestMixin, CourseTestCase, Certificat
         """
         Return url for the handler.
         """
+        reload_django_url_config()
         return reverse_course_url('certificates.certificates_list_handler', self.course.id)
 
     def test_can_create_certificate(self):
@@ -442,6 +444,7 @@ class CertificatesDetailHandlerTestCase(EventTestMixin, CourseTestCase, Certific
         """
         Return url for the handler.
         """
+        reload_django_url_config()
         cid = cid if cid > 0 else self._id
         return reverse_course_url(
             'certificates.certificates_detail_handler',
