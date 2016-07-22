@@ -27,6 +27,12 @@ $correct: $green-d2;
 $partiallycorrect: $green-d2;
 $incorrect: $red;
 
+$uxpl-blue-base: rgba(0, 116, 180, 1); // wcag2a compliant
+$uxpl-blue-hover-active: lighten($uxpl-blue-base, 7%); // wcag2a compliant
+
+$uxpl-green-base: rgba(0, 129, 0, 1); // wcag2a compliant
+$uxpl-green-hover-active: lighten($uxpl-green-base, 7%); // wcag2a compliant
+
 // +Extends - Capa
 // ====================
 // Duplicated from _mixins.scss due to xmodule compilation, inheritance issues
@@ -910,19 +916,27 @@ div.problem .action {
   min-height: $baseline;
 
   // override default button hover
-  button.btn-brand {
+  button {
     &:hover {
       background-image: none;
-      background-color: #0ea6ec;
       box-shadow: none;
     }
-  }
-
-  button.btn-default {
-    &:hover {
-      background-image: none;
-      background-color: transparent;
+    &:focus {
       box-shadow: none;
+    }
+    &.btn-default {
+      background-color: transparent;
+    }
+    &.btn-brand {
+      &:hover {
+        background-color: $uxpl-blue-hover-active;
+      }
+      &.check {
+        &.is-disabled {
+          background: $uxpl-blue-base;
+          color: #fcfcfc;
+        }
+      }
     }
   }
 
