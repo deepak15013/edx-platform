@@ -116,6 +116,7 @@ class CertificatesBaseTestCase(UrlResetMixin):
         # Overriding the FEATURES_WITH_CERTS_ENABLED settings value affects the contents of urls.py,
         # so we need to call super.setUp() which reloads urls.py (because  of the UrlResetMixin)
         super(CertificatesBaseTestCase, self).setUp()
+        self.reset_urls()
 
     def _remove_ids(self, content):
         """
@@ -212,6 +213,7 @@ class CertificatesListHandlerTestCase(EventTestMixin, CourseTestCase, Certificat
         Set up CertificatesListHandlerTestCase.
         """
         super(CertificatesListHandlerTestCase, self).setUp('contentstore.views.certificates.tracker')
+        self.reset_urls()
 
     def _url(self):
         """
@@ -439,13 +441,14 @@ class CertificatesDetailHandlerTestCase(EventTestMixin, CourseTestCase, Certific
         Set up CertificatesDetailHandlerTestCase.
         """
         super(CertificatesDetailHandlerTestCase, self).setUp('contentstore.views.certificates.tracker')
+        self.reset_urls()
 
     def _url(self, cid=-1):
         """
         Return url for the handler.
         """
-        reload_django_url_config()
         cid = cid if cid > 0 else self._id
+        reload_django_url_config()
         return reverse_course_url(
             'certificates.certificates_detail_handler',
             self.course.id,
@@ -714,6 +717,7 @@ class CertificatesDetailHandlerTestCase(EventTestMixin, CourseTestCase, Certific
         """
         Activate and Deactivate the course certificate
         """
+        reload_django_url_config()
         test_url = reverse_course_url('certificates.certificate_activation_handler', self.course.id)
         self._add_course_certificates(count=1, signatory_count=2)
 
@@ -744,6 +748,7 @@ class CertificatesDetailHandlerTestCase(EventTestMixin, CourseTestCase, Certific
         Tests certificate Activate and Deactivate should not be allowed if user
         does not have write permissions on course.
         """
+        reload_django_url_config()
         test_url = reverse_course_url('certificates.certificate_activation_handler', self.course.id)
         self._add_course_certificates(count=1, signatory_count=2)
         user = UserFactory()
@@ -763,6 +768,7 @@ class CertificatesDetailHandlerTestCase(EventTestMixin, CourseTestCase, Certific
         Tests certificate Activate and Deactivate should not be allowed if user
         does not have global staff permissions on course.
         """
+        reload_django_url_config()
         test_url = reverse_course_url('certificates.certificate_activation_handler', self.course.id)
         self._add_course_certificates(count=1, signatory_count=2)
         user = UserFactory()
@@ -783,6 +789,7 @@ class CertificatesDetailHandlerTestCase(EventTestMixin, CourseTestCase, Certific
         Certificate activation should fail when user has not read access to course then permission denied exception
         should raised.
         """
+        reload_django_url_config()
         test_url = reverse_course_url('certificates.certificate_activation_handler', self.course.id)
         test_user_client, test_user = self.create_non_staff_authed_user_client()
         CourseEnrollment.enroll(test_user, self.course.id)

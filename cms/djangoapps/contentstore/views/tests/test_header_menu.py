@@ -27,12 +27,14 @@ class TestHeaderMenu(CourseTestCase, UrlResetMixin):
         # Overriding the FEATURES_WITH_CERTS_ENABLED settings value affects the contents of urls.py,
         # so we need to call super.setUp() which reloads urls.py (because  of the UrlResetMixin)
         super(TestHeaderMenu, self).setUp()
+        self.reset_urls()
 
     def test_header_menu_without_web_certs_enabled(self):
         """
         Tests course header menu should not have `Certificates` menu item
         if course has not web/HTML certificates enabled.
         """
+        reload_django_url_config()
         outline_url = reverse_course_url('course_handler', self.course.id)
         resp = self.client.get(outline_url, HTTP_ACCEPT='text/html')
         self.assertEqual(resp.status_code, 200)
