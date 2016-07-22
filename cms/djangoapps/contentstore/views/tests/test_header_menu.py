@@ -9,6 +9,7 @@ from django.test.utils import override_settings
 from contentstore.tests.utils import CourseTestCase
 from contentstore.utils import reverse_course_url
 from util.testing import UrlResetMixin
+from util.url import reload_django_url_config
 
 FEATURES_WITH_CERTS_ENABLED = settings.FEATURES.copy()
 FEATURES_WITH_CERTS_ENABLED['CERTIFICATES_HTML_VIEW'] = True
@@ -44,6 +45,7 @@ class TestHeaderMenu(CourseTestCase, UrlResetMixin):
         """
         self.course.cert_html_view_enabled = True
         self.save_course()
+        reload_django_url_config()
         outline_url = reverse_course_url('course_handler', self.course.id)
         resp = self.client.get(outline_url, HTTP_ACCEPT='text/html')
         self.assertEqual(resp.status_code, 200)
